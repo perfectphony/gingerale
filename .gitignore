@@ -48,6 +48,6 @@ Temporary Items
 .idea/gingerale.iml
 .idea/misc.xml
 .idea/workspace.xml
-__pycache__/DatabaseMongoDB.cpython-36.pyc
 *.pyc
 .idea/modules.xml
+.idea/vcs.xml

@@ -32,7 +32,7 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
         if method == "check_user_authorization":
             ret = self.check_user_authorization(args["user_id"][0])
         elif method == "bid":
-            ret = self.bid(
+            ret = self.bid_gift(
                 args["user_id"][0],
                 args["gift_id"][0],
                 args["tokens"][0],
@@ -43,8 +43,15 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
                 args["poll_id"][0],
                 args["option"][0],
             )
+        elif method == "view_poll":
+            ret = self.view_poll(args["poll_id"][0])
 
-        return json.dumps(ret, sort_keys=True, indent=4, separators=(',', ': '))
+        return json.dumps(
+            ret,
+            sort_keys=False,
+            indent=4,
+            separators=(',', ': ')
+        )
 
     def vote_poll(self, user_id, poll_id, option):
         user = GingerAle.users.g(user_id)
@@ -63,6 +70,13 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
 
         return poll.vote(user, option)
 
+    def view_poll(self, poll_id):
+        poll = GingerAle.polls.g(poll_id)
+
+        if poll is None:
+            return {}
+
+        return poll.to_dict()
 
     def bid_gift(self, user_id, gift_id, tokens):
         user = GingerAle.users.g(user_id)
@@ -91,7 +105,7 @@ class GingerAle:
 
     users = Users(logger, db)
     gifts = Gifts(logger, db, users)
-    polls = Polls(logger, db, gifts)
+    polls = Polls(logger, db, gifts, users)
 
     def __init__(self, port):
         self.logger.log("GingerAle starting...")

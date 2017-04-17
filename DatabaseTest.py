@@ -7,34 +7,46 @@ class Database:
             {
                 "poll_id": 500,
                 "question": "Should United Airlines fire Oscar Munoz?",
-                "options": {
-                    0: {
-                        "answer": "Yes",
-                        "count": 100
+                "options": [
+                    {0: "Yes"},
+                    {1: "No"}
+                ],
+                "votes": [
+                    {
+                        "timestamp": datetime.utcnow() + timedelta(days=-1),
+                        "user_id": 100,
+                        "option": 0
                     },
-                    1: {
-                        "answer": "No",
-                        "count": 10
+                    {
+                        "timestamp": datetime.utcnow() + timedelta(days=-1),
+                        "user_id": 101,
+                        "option": 0
                     }
-                },
+                ],
                 "gift_id": 1000,
-                "tokens": 1
+                "reward_tokens": 1
             },
             {
                 "poll_id": 501,
                 "question": "Is Chocolate better than Vanilla?",
-                "options": {
-                    0: {
-                        "answer": "Yes",
-                        "count": 100
+                "options": [
+                    {0: "Yes"},
+                    {1: "No"}
+                ],
+                "votes": [
+                    {
+                        "timestamp": datetime.utcnow() + timedelta(days=-1),
+                        "user_id": 100,
+                        "option": 0
                     },
-                    1: {
-                        "answer": "No",
-                        "count": 10
+                    {
+                        "timestamp": datetime.utcnow() + timedelta(days=-1),
+                        "user_id": 101,
+                        "option": 0
                     }
-                },
+                ],
                 "gift_id": 1001,
-                "tokens": 1
+                "reward_tokens": 1
             }
         ]
 
@@ -99,7 +111,7 @@ class Database:
                 "gift_type": "raffle",
                 "desc": "$5 Target Giftcard",
                 "expiration": datetime.utcnow() + timedelta(days=-1),
-                "winner_user_id": 0,
+                "winner_user_id": 100,
                 "entries": [
                     {
                         "timestamp": datetime.utcnow() + timedelta(days=-1),
@@ -119,7 +131,7 @@ class Database:
                 "desc": "$20 GameStop Giftcard",
                 "bids": 10000,
                 "requirement": 20000,
-                "winner_user_id": 0,
+                "winner_user_id": 100,
                 "entries": [
                     {
                         "timestamp": datetime.utcnow() + timedelta(days=-1),
