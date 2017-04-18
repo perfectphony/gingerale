@@ -12,50 +12,48 @@ from Gifts import Gifts
 
 
 class HttpRequestHandler(BaseHTTPRequestHandler):
+    def __init__(self, request, client_address, server):
+        self.get_method = {
+            "bid": self.bid,
+            "vote_poll": self.vote_poll,
+            "polls": self.polls,
+            "users": self.users,
+            "gifts": self.gifts
+        }
+        super().__init__(request, client_address, server)
+
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "application/json")
         self.end_headers()
 
-        parsed_url = urlparse(self.path)
-        parsed_query = parse_qs(parsed_url.query)
-        method = parsed_url.path[1:]
+        try:
+            parsed_url = urlparse(self.path)
+            parsed_query = parse_qs(parsed_url.query)
 
-        ret = self.switch(method, parsed_query)
+            args = json.loads(parsed_query["args"][0])
+            method = parsed_url.path[1:]
+
+            ret = json.dumps(
+                self.get_method[method](args),
+                sort_keys=False,
+                indent=4,
+                separators=(',', ': ')
+            )
+        except Exception as ex:
+            ret = '{{"Error": "{}"}}'.format(ex)
+
         b = bytearray()
         b.extend(ret.encode())
         self.wfile.write(b)
 
-    def switch(self, method, args):
+    def vote_poll(self, args):
+        user_id = args["user_id"],
+        poll_id = args["poll_id"],
+        option = args["option"],
 
-        ret = {}
-        if method == "check_user_authorization":
-            ret = self.check_user_authorization(args["user_id"][0])
-        elif method == "bid":
-            ret = self.bid_gift(
-                args["user_id"][0],
-                args["gift_id"][0],
-                args["tokens"][0],
-            )
-        elif method == "vote_poll":
-            ret = self.vote_poll(
-                args["user_id"][0],
-                args["poll_id"][0],
-                args["option"][0],
-            )
-        elif method == "view_poll":
-            ret = self.view_poll(args["poll_id"][0])
-
-        return json.dumps(
-            ret,
-            sort_keys=False,
-            indent=4,
-            separators=(',', ': ')
-        )
-
-    def vote_poll(self, user_id, poll_id, option):
-        user = GingerAle.users.g(user_id)
-        poll = GingerAle.polls.g(poll_id)
+        user = GingerAle.users[user_id]
+        poll = GingerAle.polls[poll_id]
 
         if user is None:
             return {"vote": False, "reason": GC.INVALID_USER}
@@ -63,24 +61,34 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
         if poll is None:
             return {"vote": False, "reason": GC.INVALID_POLL}
 
-        bid_raffle = self.bid_gift(user_id, poll.gift.gift_id, poll.token_reward)
-
-        if not bid_raffle["bid"]:
-            return {"vote": False, "reason": bid_raffle["reason"]}
-
         return poll.vote(user, option)
 
-    def view_poll(self, poll_id):
-        poll = GingerAle.polls.g(poll_id)
+    def polls(self, args):
+        details = True if ("details" in args and args["details"]) else False
+        top = args["top"] if "top" in args else 0
+        id_filter = args["id"] if "id" in args else None
+        polls = GingerAle.polls.g(id_filter, top)
+        return [poll.to_dict(details) for poll in polls] if type(polls) is list else polls.to_dict(details)
 
-        if poll is None:
-            return {}
+    def gifts(self, args):
+        top = args["top"] if "top" in args else 0
+        id_filter = args["id"] if "id" in args else None
+        gifts = GingerAle.polls.g(id_filter, top)
+        return [gift.to_dict() for gift in gifts] if type(gifts) is list else gifts.to_dict()
 
-        return poll.to_dict()
+    def users(self, args):
+        top = args["top"] if "top" in args else 0
+        id_filter = args["id"] if "id" in args else None
+        users = GingerAle.users.g(id_filter, top)
+        return [user.to_dict() for user in users] if type(users) is list else users.to_dict()
 
-    def bid_gift(self, user_id, gift_id, tokens):
-        user = GingerAle.users.g(user_id)
-        gift = GingerAle.gifts.g(gift_id)
+    def bid(self, args):
+        user_id = args["user_id"],
+        gift_id = args["gift_id"],
+        tokens =  args["tokens"],
+
+        user = GingerAle.users[user_id]
+        gift = GingerAle.gifts[gift_id]
 
         if user is None:
             return {"bid": False, "reason": GC.INVALID_USER}
@@ -89,14 +97,6 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
             return {"bid": False, "reason": GC.INVALID_GIFT}
 
         return gift.bid(user, tokens)
-
-    def check_user_authorization(self, user_id):
-        user = GingerAle.users.g(user_id)
-
-        if user is None:
-            return {"authorized": False, "reason": GC.INVALID_USER}
-
-        return {"authorized": True, "reason": ""}
 
 
 class GingerAle:
