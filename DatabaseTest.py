@@ -66,7 +66,7 @@ class Database:
             }
         ]
 
-    def get_gifts(self):
+    def get_prizes(self):
         return [
             {
                 "id": 1000,

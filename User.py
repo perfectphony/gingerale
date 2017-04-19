@@ -10,6 +10,12 @@ class User(GObject):
 
 
 class UserManager(GObjectManager):
-    obj_class = User
-    obj_collection = "users"
+    @property
+    def obj_class(self):
+        return User
+
+    @property
+    def obj_collection(self):
+        return "users"
+
 

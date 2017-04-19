@@ -5,7 +5,7 @@ import GlobalConstants as GC
 from GObject import GObject, GObjectManager
 
 
-class Gift(GObject):
+class Prize(GObject):
     def __init__(self, logger, db, manager, desc=None, entries=None, requirement=None, winner_user=None):
         super().__init__(logger, db, manager)
         self.desc = desc
@@ -35,14 +35,22 @@ class Gift(GObject):
         entry["tokens"] -= token_overflow
         self.winner_user = user
 
-        return {"bid": True, "reason": ""}
+        ret = {"bid": True, "reason": ""}
+        self.logger.log("Bid Prize:{} User:{} Tokens:{}. {}".format(
+            self.id, user.id, tokens, ret)
+        )
+        return ret
 
 
-class GiftManager(GObjectManager):
-    obj_class = Gift
-    obj_collection = "gifts"
+class PrizeManager(GObjectManager):
+    @property
+    def obj_class(self):
+        return Prize
+
+    @property
+    def obj_collection(self):
+        return "prizes"
 
     def __init__(self, logger, db, user_manager):
         self.user_manager = user_manager
         super().__init__(logger, db)
-

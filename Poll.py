@@ -4,16 +4,16 @@ from GObject import GObject, GObjectManager
 
 
 class Poll(GObject):
-    def __init__(self, logger, db, manager, question=None, options=None, votes=None, reward_tokens=None, gift_id=None):
+    def __init__(self, logger, db, manager, question=None, options=None, votes=None, reward_tokens=None, prize_id=None):
         super().__init__(logger, db, manager)
         self.question = question
         self.options = options
         self.votes = votes
         self.reward_tokens = reward_tokens
-        self.gift_id = gift_id
+        self.prize_id = prize_id
 
-    def gift(self):
-        return self.manager.gift_manager.get(self.gift_id, 1)[0]
+    def prize(self):
+        return self.manager.prize_manager.get(self.prize_id, 1)[0]
 
     def vote(self, user, option):
 
@@ -29,14 +29,23 @@ class Poll(GObject):
             "option": option
         })
 
-        return {"vote": True, "reason": ""}
+        ret = {"vote": True, "reason": ""}
+        self.logger.log("Vote Poll:{} User:{} Option:{}. {}".format(
+            self.id, user.id, option, ret)
+        )
+        return ret
 
 
 class PollManager(GObjectManager):
-    obj_class = Poll
-    obj_collection = "polls"
+    @property
+    def obj_class(self):
+        return Poll
 
-    def __init__(self, logger, db, gift_manager, users_manager):
-        self.gift_manager = gift_manager
+    @property
+    def obj_collection(self):
+        return "polls"
+
+    def __init__(self, logger, db, prize_anager, users_manager):
+        self.prize_anager = prize_anager
         self.users_manager = users_manager
         super().__init__(logger, db)
