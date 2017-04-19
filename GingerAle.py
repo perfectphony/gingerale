@@ -7,9 +7,9 @@ import GlobalConstants as GC
 from DatabaseMongoDB import Database
 from LoggerNone import Logger
 
-from Poll import PollManager
-from User import UserManager
-from Gift import GiftManager
+from Poll import *
+from User import *
+from Gift import *
 
 
 class HttpRequestHandler(BaseHTTPRequestHandler):
@@ -18,8 +18,14 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
         self.get_method = {
             "gift_bid": self.gift_bid,
             "poll_vote": self.poll_vote,
+            "poll_set": self.poll_set,
+            "poll_del": self.poll_del,
             "polls": self.polls,
+            "user_set": self.user_set,
+            "user_delete": self.user_del,
             "users": self.users,
+            "gift_set": self.gift_set,
+            "gift_delete": self.gift_del,
             "gifts": self.gifts
         }
         super().__init__(request, client_address, server)
@@ -51,29 +57,51 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
         b.extend(ret.encode())
         self.wfile.write(b)
 
-    def polls(self, args):
+    def _get(self, args, manager):
+        show_deleted = True if ("show_deleted" in args and args["show_deleted"]) else False
         show_details = True if ("show_details" in args and args["show_details"]) else False
         limit = args["limit"] if "limit" in args else 0
         id_filter = args["id"] if "id" in args else None
 
-        polls = GingerAle.poll_manager.get(id_filter, limit)
-        return [poll.to_dict() for poll in polls]
+        objs = manager.get(id_filter, limit, show_deleted)
+        return [obj.to_dict() for obj in objs]
+
+    def _set(self, args, manager, obj_class):
+        obj = obj_class(GingerAle.logger, GingerAle.db, manager)
+        for k, v in args.items():
+            obj.__setattr__(k, v)
+        return obj.set()
+
+    def _delete(self, args, manager):
+        id_list = args["id"] if "id" in args else None
+        return manager.delete(id_list)
+
+    def polls(self, args):
+        return self._get(args, GingerAle.poll_manager)
+
+    def poll_set(self, args):
+        return self._set(args, GingerAle.poll_manager, Poll)
+
+    def poll_del(self, args):
+        return self._delete(args, GingerAle.poll_manager)
 
     def gifts(self, args):
-        show_details = True if ("show_details" in args and args["show_details"]) else False
-        limit = args["limit"] if "limit" in args else 0
-        id_filter = args["id"] if "id" in args else None
+        return self._get(args, GingerAle.gift_manager)
 
-        gifts = GingerAle.poll_manager.get(id_filter, limit)
-        return [gift.to_dict() for gift in gifts]
+    def gift_set(self, args):
+        return self._set(args, GingerAle.gift_manager, Gift)
+
+    def gift_del(self, args):
+        return self._delete(args, GingerAle.gift_manager)
 
     def users(self, args):
-        show_details = True if ("show_details" in args and args["show_details"]) else False
-        limit = args["limit"] if "limit" in args else 0
-        id_filter = args["id"] if "id" in args else None
+        return self._get(args, GingerAle.user_manager)
 
-        users = GingerAle.poll_manager.get(id_filter, limit)
-        return [user.to_dict() for user in users]
+    def user_set(self, args):
+        return self._set(args, GingerAle.user_manager, User)
+
+    def user_del(self, args):
+        return self._delete(args, GingerAle.user_manager)
 
     def poll_vote(self, args):
         user_id = args["user_id"],

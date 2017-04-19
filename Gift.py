@@ -1,26 +1,17 @@
 from datetime import datetime
-import abc
+
 
 import GlobalConstants as GC
-from GObjects import GObject, GObjectManager
-
-
-class GiftManager(GObjectManager):
-    def __init__(self, logger, db, user_manager):
-        self.user_manager = user_manager
-        super().__init__(logger, db)
-
-    def get(self, id_filter, limit=0):
-        return self.db.get("polls", Gift, self, id_filter, limit)
+from GObject import GObject, GObjectManager
 
 
 class Gift(GObject):
-    def __init__(self, logger, db, manager, gift_id, desc=None, entries=None, requirement=None, winner_user=None):
+    def __init__(self, logger, db, manager, desc=None, entries=None, requirement=None, winner_user=None):
+        super().__init__(logger, db, manager)
         self.desc = desc
         self.entries = entries
         self.requirement = requirement
         self.winner_user = winner_user
-        super().__init__(logger, db, manager, gift_id)
 
     def bid(self, user, tokens):
 
@@ -46,4 +37,12 @@ class Gift(GObject):
 
         return {"bid": True, "reason": ""}
 
+
+class GiftManager(GObjectManager):
+    obj_class = Gift
+    obj_collection = "gifts"
+
+    def __init__(self, logger, db, user_manager):
+        self.user_manager = user_manager
+        super().__init__(logger, db)
 

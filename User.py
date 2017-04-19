@@ -1,13 +1,15 @@
-from GObjects import GObject, GObjectManager
+from GObject import GObject, GObjectManager
 
-
-class UserManager(GObjectManager):
-    def get(self, id_filter, limit=0):
-        return self.db.get("polls", User, self, id_filter, limit)
 
 class User(GObject):
-    def __init__(self, logger, db, manager, user_id, name=None, status=None, tokens=None):
+    def __init__(self, logger, db, manager, name=None, status=None, tokens=None):
+        super().__init__(logger, db, manager)
         self.name = name
         self.status = status
         self.tokens = tokens
-        super().__init__(logger, db, manager, user_id)
+
+
+class UserManager(GObjectManager):
+    obj_class = User
+    obj_collection = "users"
+
