@@ -4,12 +4,15 @@ import subprocess
 
 class HttpRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/favicon.ico":
+            return
+
         self.send_response(200)
         self.send_header("Content-type", "application/json")
         self.end_headers()
 
         cmd = "python GingerAle.py {}".format(self.path)
-        print(cmd)
+        print("Passing {}".format(self.path))
         proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         proc.wait()
         out, err = proc.communicate()

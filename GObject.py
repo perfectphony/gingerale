@@ -1,6 +1,15 @@
 import abc
 
 
+class F:
+    INVALID_USER = "INACTIVE_OR_INVALID_USER"
+    INVALID_POLL = "EXPIRED_OR_INVALID_POLL"
+    INVALID_PRIZE = "EXPIRED_OR_INVALID_PRIZE"
+    INVALID_POLL_CHOICE = "INVALID_POLL_CHOICE"
+    INVALID_TOKEN_AMOUNT = "INVALID_TOKEN_AMOUNT"
+    NOT_ENOUGH_TOKENS = "NOT_ENOUGH_TOKENS"
+    NOT_ENOUGH_BIDS = "NOT_ENOUGH_BIDS"
+
 class GObject(metaclass=abc.ABCMeta):
     def __init__(self, logger, db, manager):
         self.id = None #auto-filled
@@ -11,13 +20,19 @@ class GObject(metaclass=abc.ABCMeta):
         self.manager = manager
 
     def to_dict(self, full=True):
-        obj_dict = {}
+        # full=False will prevent null fields (fields with None)
+        # from being added to the dictionary
 
-        for k, v in self.__dict__.items():
-            if not hasattr(v, "__dict__") and (v is not None or full):
-                obj_dict[k] = v
+        return {
+            k: v for k, v in self.__dict__.items()
+            if not hasattr(v, "__dict__") and (v is not None or full)
+        }
 
-        return obj_dict
+        # for k, v in self.__dict__.items():
+        #     if not hasattr(v, "__dict__") and (v is not None or full):
+        #         obj_dict[k] = v
+
+        # return obj_dict
 
     def set(self):
         ret = self.db.set(self.manager.obj_collection, self)
@@ -28,11 +43,17 @@ class GObject(metaclass=abc.ABCMeta):
 
 
 class GObjectManager(metaclass=abc.ABCMeta):
+
+    # obj_class and obj_collection
+    # must be assigned by the inheriting class
+
+    # used to create new instances of the object
     @property
     @abc.abstractmethod
     def obj_class(self):
         return None
 
+    # used to insert record into database collection/table name
     @property
     @abc.abstractmethod
     def obj_collection(self):
@@ -41,14 +62,13 @@ class GObjectManager(metaclass=abc.ABCMeta):
     def __init__(self, logger, db):
         self.logger = logger
         self.db = db
-        self.manager = None  # filled by inherited class object
 
     def delete(self, id_list):
         ret = self.db.delete(self.obj_collection, id_list)
         self.logger.log("Delete {}:{}. {}".format(
-            self.manager.obj_class.__class__.__name__, id_list, ret)
+            self.obj_class.__class__.__name__, id_list, ret)
         )
         return ret
 
-    def get(self, id_list, limit=0, show_deleted=False):
-        return self.db.get(self.obj_collection, self.obj_class, self, id_list, limit, show_deleted)
+    def get(self, id_list, limit=0, show_inactive=True, show_deleted=False):
+        return self.db.get(self.obj_collection, self.obj_class, self, id_list, limit, show_inactive, show_deleted)
