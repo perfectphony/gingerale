@@ -1,39 +1,40 @@
-from GObject import GObject, GObjectManager, F
+from GObject import GObjectManager, F
+from Comment import CommentContainer
 
 
-class Prize(GObject):
-    def __init__(self, logger, db, manager, desc=None, entries=None, requirement=None, winner_user_id=None):
+class Prize(CommentContainer):
+    def __init__(self, logger, db, manager, desc=None, entries=None, current_bid_count=None, required_bids=None):
         super().__init__(logger, db, manager)
         self.desc = desc
         self.entries = entries
-        self.requirement = requirement
-        self.winner_user_id = winner_user_id
+        self.current_bid_count = current_bid_count
+        self.required_bids = required_bids
 
-    def bid(self, user, prizebid):
+    def bid(self, user, prizebid, tokens):
 
-        #to do - make concurrent safe
         if user is None:
-            return {"bid": False, "reason": F.INVALID_PRIZE}
+            return {"win": False, "reason": F.INVALID_PRIZE}
 
         if user.tokens < prizebid.tokens:
-            return {"bid": False, "reason": F.NOT_ENOUGH_TOKENS}
+            return {"win": False, "reason": F.NOT_ENOUGH_TOKENS}
 
-        total_bid_tokens = 0 + prizebid.tokens #to do
+        ret = self.db.bid_prize(self.id, user.id, tokens)
 
-        if total_bid_tokens < self.requirement:
-            return {"bid": False, "reason": F.NOT_ENOUGH_BIDS}
+        if ret is None:
+            return {"win": False, "reason": F.NOT_ENOUGH_BIDS}
 
-        #return token over usage to user
-        token_overflow = total_bid_tokens - self.requirement
-        user.give_tokens(token_overflow)
-        entry["tokens"] -= token_overflow
-        self.winner_user = user
+        if ret > 0: #return overpaid tokens to user
+            prizebid.tokens -= ret
+            user.tokens -= prizebid.tokens
 
-        ret = {"bid": True, "reason": ""}
-        self.logger.log("Bid Prize:{} User:{} Tokens:{}. {}".format(
-            self.id, user.id, prizebid.tokens, ret)
+        #save to db
+        prizebid.set()
+        user.set()
+
+        self.logger.log("WIN Bid Prize:{} User:{} Tokens:{}".format(
+            self.id, user.id, prizebid.tokens)
         )
-        return ret
+        return {"win": True}
 
 
 class PrizeManager(GObjectManager):

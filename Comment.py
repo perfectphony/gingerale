@@ -1,23 +1,18 @@
-from GObject import GObject, GObjectManager
+from GObject import GObject, F
 
 
-class Comment(GObject):
-    def __init__(self, logger, db, manager, text=None, parent_collection=None, parent_id=None, user_id=None):
+class Comment(GObject): #comment object
+    def __init__(self, logger, db, manager, text=None, user_id=None):
         super().__init__(logger, db, manager)
         self.text = text
         self.user_id = user_id
-        self.parent_collection = parent_collection
-        self.parent_id = parent_id
-
-    def user(self):
-        return self.manager.user_manager.get(self.user_id, 1)[0]
 
 
-class CommentManager(GObjectManager):
-    @property
-    def obj_class(self):
-        return Comment
+class CommentContainer(GObject): #objects that contains comments
+    def add_comment(self, user, comment):
 
-    @property
-    def obj_collection(self):
-        return "comments"
+        if user is None:
+            return {"inserted": "0", "reason": F.INVALID_USER}
+
+        comment.id = None
+        return self.set()

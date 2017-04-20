@@ -10,7 +10,8 @@ from LoggerNone import Logger
 from Poll import PollManager
 from User import UserManager
 from Prize import PrizeManager
-from Comment import CommentManager
+from PollComment import PollCommentManager
+from PrizeComment import PrizeCommentManager
 from PrizeBid import PrizeBidManager
 from PollVote import PollVoteManager
 
@@ -24,7 +25,8 @@ class GingerAle:
         self.poll_manager = PollManager(self.logger, self.db)
         self.pollvote_manager = PollVoteManager(self.logger, self.db)
         self.prizebid_manager = PrizeBidManager(self.logger, self.db)
-        self.comment_manager = CommentManager(self.logger, self.db)
+        self.pollcomment_manager = PollCommentManager(self.logger, self.db)
+        self.prizecomment_manager = PrizeCommentManager(self.logger, self.db)
 
         parsed_url = urlparse(http_path)
         parsed_query = parse_qs(parsed_url.query)
@@ -46,24 +48,24 @@ class GingerAle:
         self.db.close()
         self.logger.close()
 
-    def _get(self, args, manager):
+    def _get_objs(self, args, manager):
         show_deleted = True if ("show_deleted" in args and args["show_deleted"]) else False
         show_details = True if ("show_details" in args and args["show_details"]) else False
         limit = args["limit"] if "limit" in args else 0
-        id_filter = args["id"] if "id" in args else None
-        objs = manager.get(id_filter, limit, show_deleted=show_deleted)
+        id_list = args["id"] if "id" in args else None
+        objs = manager.get(id_list, limit, show_deleted=show_deleted)
         return [obj.to_dict() for obj in objs]
 
-    def _fill_new(self, args, manager):
+    def _fill_new_obj(self, args, manager):
         obj = manager.obj_class(self.logger, self.db, manager)
         for k, v in args.items():
             obj.__setattr__(k, v)
         return obj
 
-    def _set(self, args, manager):
-        return self._fill_new(args, manager).set()
+    def _set_obj(self, args, manager):
+        return self._fill_new_obj(args, manager).set()
 
-    def _delete(self, args, manager):
+    def _delete_objs(self, args, manager):
         id_list = args["id"] if "id" in args else None
         return manager.delete(id_list)
 
@@ -73,58 +75,58 @@ class GingerAle:
 
     # region std http calls
     def http_polls(self, args):
-        return self._get(args, self.poll_manager)
+        return self._get_objs(args, self.poll_manager)
 
     def http_poll_set(self, args):
-        return self._set(args, self.poll_manager)
+        return self._set_obj(args, self.poll_manager)
 
     def http_polls_del(self, args):
-        return self._delete(args, self.poll_manager)
+        return self._delete_objs(args, self.poll_manager)
 
     def http_prizes(self, args):
-        return self._get(args, self.prize_manager)
+        return self._get_objs(args, self.prize_manager)
 
     def http_prize_set(self, args):
-        return self._set(args, self.prize_manager)
+        return self._set_obj(args, self.prize_manager)
 
     def http_prizes_del(self, args):
-        return self._delete(args, self.prize_manager)
+        return self._delete_objs(args, self.prize_manager)
 
     def http_users(self, args):
-        return self._get(args, self.user_manager)
+        return self._get_objs(args, self.user_manager)
 
     def http_user_set(self, args):
-        return self._set(args, self.user_manager)
+        return self._set_obj(args, self.user_manager)
 
     def http_users_del(self, args):
-        return self._delete(args, self.user_manager)
+        return self._delete_objs(args, self.user_manager)
 
     def http_pollvotes(self, args):
-        return self._get(args, self.pollvote_manager)
+        return self._get_objs(args, self.pollvote_manager)
 
     def http_pollvote_set(self, args):
-        return self._set(args, self.pollvote_manager)
+        return self._set_obj(args, self.pollvote_manager)
 
     def http_pollvotes_del(self, args):
-        return self._delete(args, self.pollvote_manager)
+        return self._delete_objs(args, self.pollvote_manager)
 
     def http_prizebids(self, args):
-        return self._get(args, self.prizebid_manager)
+        return self._get_objs(args, self.prizebid_manager)
 
     def http_prizebid_set(self, args):
-        return self._set(args, self.prizebid_manager)
+        return self._set_obj(args, self.prizebid_manager)
 
     def http_prizebids_del(self, args):
-        return self._delete(args, self.prizebid_manager)
+        return self._delete_objs(args, self.prizebid_manager)
 
     def http_comments(self, args):
-        return self._get(args, self.comment_manager)
+        return self._get_objs(args, self.comment_manager)
 
     def http_comment_set(self, args):
-        return self._set(args, self.comment_manager)
+        return self._set_obj(args, self.comment_manager)
 
     def http_comments_del(self, args):
-        return self._delete(args, self.comment_manager)
+        return self._delete_objs(args, self.comment_manager)
 
     # endregion
 
@@ -138,7 +140,7 @@ class GingerAle:
         polls = self.poll_manager.get(poll_id, 1, show_inactive=False)
         poll = polls[0] if len(polls) > 0 else None
 
-        return poll.vote(user, self._fill_new(args, self.pollvote_manager))
+        return poll.vote(user, self._fill_new_obj(args, self.pollvote_manager))
 
     def http_user_bid_prize(self, args):
         user_id = args["user_id"] if "user_id" in args else None
@@ -150,15 +152,32 @@ class GingerAle:
         prizes = self.prize_manager.get(prize_id, 1, show_inactive=False)
         prize = prizes[0] if len(prizes) > 0 else None
 
-        return prize.bid(user, self._fill_new(args, self.prizebid_manager))
+        return prize.bid(user, self._fill_new_obj(args, self.prizebid_manager))
 
-    def http_user_comment(self, args):
+    def http_user_poll_comment(self, args):
         user_id = args["user_id"] if "user_id" in args else None
+        poll_id = args["poll_id"] if "poll_id" in args else None
 
         users = self.user_manager.get(user_id, 1, show_inactive=False)
         user = users[0] if len(users) > 0 else None
 
-        return
+        polls = self.poll_manager.get(poll_id, 1, show_inactive=False)
+        poll = polls[0] if len(polls) > 0 else None
+
+        return poll.add_comment(user, self._fill_new_obj(args, self.pollcomment_manager))
+
+    def http_user_prize_comment(self, args):
+        user_id = args["user_id"] if "user_id" in args else None
+        poll_id = args["poll_id"] if "poll_id" in args else None
+
+        users = self.user_manager.get(user_id, 1, show_inactive=False)
+        user = users[0] if len(users) > 0 else None
+
+        prizes = self.poll_manager.get(poll_id, 1, show_inactive=False)
+        prize = prizes[0] if len(prizes) > 0 else None
+
+        return prize.add_comment(user, self._fill_new_obj(args, self.prizecomment_manager))
+
 
 
 if __name__ == "__main__":

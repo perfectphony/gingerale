@@ -9,6 +9,8 @@ class F:
     INVALID_TOKEN_AMOUNT = "INVALID_TOKEN_AMOUNT"
     NOT_ENOUGH_TOKENS = "NOT_ENOUGH_TOKENS"
     NOT_ENOUGH_BIDS = "NOT_ENOUGH_BIDS"
+    USER_ALREADY_VOTED = "USER_ALREADY_VOTED"
+
 
 class GObject(metaclass=abc.ABCMeta):
     def __init__(self, logger, db, manager):

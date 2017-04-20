@@ -45,15 +45,15 @@ class Database:
 
             # get next id increment
             obj.id = self._get_next_id(collection_name)
-            ret = collection.insert(obj.to_dict())["nInserted"]
+            ret = {"inserted": collection.insert(obj.to_dict())["nInserted"]}
         else:
-            ret = collection.update(
+            ret = {"updated": collection.update(
                 {"id":  obj.id},
                 {"$set": obj.to_dict(False)},
                 upsert=False
-            )["nModified"]
+            )["nModified"]}
 
-        return {"updated": ret}
+        return ret
 
     def get(self, collection_name, class_obj, manager, id_list=None, limit=0, show_inactive=True, show_deleted=False):
         collection = self.database[collection_name]
@@ -89,3 +89,32 @@ class Database:
             ret.append(obj)
 
         return ret
+
+    def bid_prize(self, prize_id, user_id, tokens):
+        # returns None if prize NOT yet won
+        # returns number of tokens overpaid if won
+
+        collection = self.database["prizes"]
+
+        prize = collection.find_one_and_update({
+                "id": prize_id,
+                "$where": "this.required_bids > this.current_bid_count"
+            },
+            {
+                "$inc": {"current_bid_count": tokens},
+            },
+            return_document=True
+        )
+
+        if prize is None or prize["current_bid_count"] < prize["required_bids"]:
+            return None
+
+        return prize["current_bid_count"] - prize["required_bids"]
+
+    def get_vote_by_poll_and_user(self, user_id, poll_id):
+        # returns the poll choice, False if vote not found
+
+        collection = self.database["votes"]
+        vote = collection.find({"user_id": user_id, "poll_id": poll_id})
+
+        return None if vote is None else vote["choice"]
