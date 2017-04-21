@@ -39,7 +39,7 @@ class GObject(metaclass=abc.ABCMeta):
     def set(self):
         ret = self.db.set(self.manager.obj_collection, self)
         self.logger.log("Set {}:{}. {}".format(
-            self.manager.obj_class.__class__.__name__, self.id, ret)
+            self.__class__.__name__, self.id, ret)
         )
         return ret
 

@@ -1,62 +1,33 @@
-import json
+# example usage: Python GingerAle port=6176 max_threads=10
+# port: port number gingerale will listen on for incoming connections
+# max_threads: number of simultaneous threads to use (thread pool)
+
+from sys import argv
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
-from urllib.parse import urlparse, parse_qs
-from tornado import web, ioloop
 
-from GingerAleInit import GingerAleInit
+# modular classes
+from DatabaseMongoDB import Database
+from LoggerNone import Logger
+from HttpRequestTornado import HttpRequest
 
-
-class WebHandler(web.RequestHandler):
-    def initialize(self, GA):
-        self.GA = GA
-
-    #@gen.coroutine
-    @web.asynchronous
-    def get(self):
-        self.GA.thread_pool.submit(self.respond)
-
-    def respond(self):
-        if self.request.uri == "/favicon.ico":
-            return
-
-        self.GA.logger.log(self.request.uri)
-
-        parsed_url = urlparse(self.request.uri)
-        parsed_query = parse_qs(parsed_url.query)
-
-        args = json.loads(parsed_query["args"][0]) if "args" in parsed_query else {}
-        method = "http_" + parsed_url.path[1:]
-
-        ret = json.dumps(
-            self.GA.__getattribute__(method)(args),
-            sort_keys=False,
-            indent=4,
-            separators=(',', ': '),
-            default=lambda obj: obj.isoformat('T') if type(obj) is datetime else None,
-            skipkeys=True
-        )
-
-        self.set_header('Content-Type', 'application/json')
-        self.write(ret)
-        self.finish()
+# partial class for GingerAle
+from GingerAlePartial import GingerAlePartial
 
 
-class GingerAle(GingerAleInit):
+class GingerAle(GingerAlePartial):
     def __init__(self, port, max_threads):
-        super().__init__()
-        self.thread_pool = ThreadPoolExecutor(max_workers=max_threads)
+        logger = Logger()
+        db = Database(logger)
+        super().__init__(logger, db)
 
-        try:
-            server_app = web.Application([(r"/.*", WebHandler, {"GA": self})])
-            server_app.listen(port)
-            self.logger.log("GingerAle running")
-            ioloop.IOLoop.instance().start()
-        except KeyboardInterrupt:
-            ioloop.IOLoop.instance().stop()
-            self.logger.log("GingerAle exiting...")
-            self.db.close()
-            self.logger.close()
+        thread_pool = ThreadPoolExecutor(max_workers=max_threads)
+
+        logger.log("GingerAle started.")
+        HttpRequest(self, port, thread_pool)
+
+        self.logger.log("GingerAle exiting...")
+        db.close()
+        logger.close()
 
     def http_test(self, args):
         t = {}
@@ -114,4 +85,11 @@ class GingerAle(GingerAleInit):
 
 
 if __name__ == "__main__":
-    GingerAle(6176, 10)
+
+    # parse parameters to dictionary, example argument: port=6176
+    cmd_line_args = {arg.split("=")[0]: arg.split("=")[1] for arg in argv[1:]}
+
+    GingerAle(
+        port=cmd_line_args["port"] if "port" in cmd_line_args else 6176,
+        max_threads=cmd_line_args["max_threads"] if "max_threads" in cmd_line_args else 10
+    )

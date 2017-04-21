@@ -1,6 +1,3 @@
-from DatabaseMongoDB import Database
-from LoggerNone import Logger
-
 from Poll import PollManager
 from User import UserManager
 from Prize import PrizeManager
@@ -10,10 +7,10 @@ from PrizeBid import PrizeBidManager
 from PollVote import PollVoteManager
 
 
-class GingerAleInit:
-    def __init__(self):
-        self.logger = Logger()
-        self.db = Database(self.logger)
+class GingerAlePartial:
+    def __init__(self, logger, db):
+        self.logger = logger
+        self.db = db
         self.user_manager = UserManager(self.logger, self.db)
         self.prize_manager = PrizeManager(self.logger, self.db)
         self.poll_manager = PollManager(self.logger, self.db)
