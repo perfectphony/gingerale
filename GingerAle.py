@@ -1,41 +1,35 @@
-from sys import argv
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from time import sleep
 from urllib.parse import urlparse, parse_qs
+from tornado import web, ioloop
 
-from DatabaseMongoDB import Database
-from LoggerNone import Logger
-
-from Poll import PollManager
-from User import UserManager
-from Prize import PrizeManager
-from PollComment import PollCommentManager
-from PrizeComment import PrizeCommentManager
-from PrizeBid import PrizeBidManager
-from PollVote import PollVoteManager
+from GingerAleInit import GingerAleInit
 
 
-class GingerAle:
-    def __init__(self, http_path):
-        self.logger = Logger()
-        self.db = Database(self.logger)
-        self.user_manager = UserManager(self.logger, self.db)
-        self.prize_manager = PrizeManager(self.logger, self.db)
-        self.poll_manager = PollManager(self.logger, self.db)
-        self.pollvote_manager = PollVoteManager(self.logger, self.db)
-        self.prizebid_manager = PrizeBidManager(self.logger, self.db)
-        self.pollcomment_manager = PollCommentManager(self.logger, self.db)
-        self.prizecomment_manager = PrizeCommentManager(self.logger, self.db)
+class WebHandler(web.RequestHandler):
+    def initialize(self, GA):
+        self.GA = GA
 
-        parsed_url = urlparse(http_path)
+    #@gen.coroutine
+    @web.asynchronous
+    def get(self):
+        self.GA.thread_pool.submit(self.respond)
+
+    def respond(self):
+        if self.request.uri == "/favicon.ico":
+            return
+
+        self.GA.logger.log(self.request.uri)
+
+        parsed_url = urlparse(self.request.uri)
         parsed_query = parse_qs(parsed_url.query)
 
         args = json.loads(parsed_query["args"][0]) if "args" in parsed_query else {}
         method = "http_" + parsed_url.path[1:]
 
         ret = json.dumps(
-            self.__getattribute__(method)(args),
+            self.GA.__getattribute__(method)(args),
             sort_keys=False,
             indent=4,
             separators=(',', ': '),
@@ -43,92 +37,32 @@ class GingerAle:
             skipkeys=True
         )
 
-        print(ret)
+        self.set_header('Content-Type', 'application/json')
+        self.write(ret)
+        self.finish()
 
-        self.db.close()
-        self.logger.close()
 
-    def _get_objs(self, args, manager):
-        show_deleted = True if ("show_deleted" in args and args["show_deleted"]) else False
-        show_details = True if ("show_details" in args and args["show_details"]) else False
-        limit = args["limit"] if "limit" in args else 0
-        id_list = args["id"] if "id" in args else None
-        objs = manager.get(id_list, limit, show_deleted=show_deleted)
-        return [obj.to_dict() for obj in objs]
+class GingerAle(GingerAleInit):
+    def __init__(self, port, max_threads):
+        super().__init__()
+        self.thread_pool = ThreadPoolExecutor(max_workers=max_threads)
 
-    def _fill_new_obj(self, args, manager):
-        obj = manager.obj_class(self.logger, self.db, manager)
-        for k, v in args.items():
-            obj.__setattr__(k, v)
-        return obj
-
-    def _set_obj(self, args, manager):
-        return self._fill_new_obj(args, manager).set()
-
-    def _delete_objs(self, args, manager):
-        id_list = args["id"] if "id" in args else None
-        return manager.delete(id_list)
+        try:
+            server_app = web.Application([(r"/.*", WebHandler, {"GA": self})])
+            server_app.listen(port)
+            self.logger.log("GingerAle running")
+            ioloop.IOLoop.instance().start()
+        except KeyboardInterrupt:
+            ioloop.IOLoop.instance().stop()
+            self.logger.log("GingerAle exiting...")
+            self.db.close()
+            self.logger.close()
 
     def http_test(self, args):
-        sleep(10)
-        return {}
-
-    # region std http calls
-    def http_polls(self, args):
-        return self._get_objs(args, self.poll_manager)
-
-    def http_poll_set(self, args):
-        return self._set_obj(args, self.poll_manager)
-
-    def http_polls_del(self, args):
-        return self._delete_objs(args, self.poll_manager)
-
-    def http_prizes(self, args):
-        return self._get_objs(args, self.prize_manager)
-
-    def http_prize_set(self, args):
-        return self._set_obj(args, self.prize_manager)
-
-    def http_prizes_del(self, args):
-        return self._delete_objs(args, self.prize_manager)
-
-    def http_users(self, args):
-        return self._get_objs(args, self.user_manager)
-
-    def http_user_set(self, args):
-        return self._set_obj(args, self.user_manager)
-
-    def http_users_del(self, args):
-        return self._delete_objs(args, self.user_manager)
-
-    def http_pollvotes(self, args):
-        return self._get_objs(args, self.pollvote_manager)
-
-    def http_pollvote_set(self, args):
-        return self._set_obj(args, self.pollvote_manager)
-
-    def http_pollvotes_del(self, args):
-        return self._delete_objs(args, self.pollvote_manager)
-
-    def http_prizebids(self, args):
-        return self._get_objs(args, self.prizebid_manager)
-
-    def http_prizebid_set(self, args):
-        return self._set_obj(args, self.prizebid_manager)
-
-    def http_prizebids_del(self, args):
-        return self._delete_objs(args, self.prizebid_manager)
-
-    def http_comments(self, args):
-        return self._get_objs(args, self.comment_manager)
-
-    def http_comment_set(self, args):
-        return self._set_obj(args, self.comment_manager)
-
-    def http_comments_del(self, args):
-        return self._delete_objs(args, self.comment_manager)
-
-    # endregion
+        t = {}
+        for i in range(0, 10000):
+            t[i] = self._get_objs({"id": [500, 501]}, self.poll_manager)
+        return t
 
     def http_user_vote_poll(self, args):
         user_id = args["user_id"] if "user_id" in args else None
@@ -179,6 +113,5 @@ class GingerAle:
         return prize.add_comment(user, self._fill_new_obj(args, self.prizecomment_manager))
 
 
-
 if __name__ == "__main__":
-    GingerAle(argv[1])
+    GingerAle(6176, 10)
