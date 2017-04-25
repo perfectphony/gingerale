@@ -1,12 +1,14 @@
-# example usage: Python GingerAle port=6176 max_threads=10
+# example usage: python GingerAle port=6176 max_threads=10
 # port: port number gingerale will listen on for incoming connections
 # max_threads: number of simultaneous threads to use (thread pool)
 
-from sys import argv
+import time
+import sys
 from concurrent.futures import ThreadPoolExecutor
 
 # modular classes
-from DatabaseMongoDB import Database
+# from DatabaseMongoDB import Database
+from DatabaseTest import Database
 from LoggerNone import Logger
 from HttpRequestTornado import HttpRequest
 
@@ -25,15 +27,14 @@ class GingerAle(GingerAlePartial):
         logger.log("GingerAle started.")
         HttpRequest(self, port, thread_pool)
 
+        # code will continue when HttpRequest is no longer listening
         self.logger.log("GingerAle exiting...")
         db.close()
         logger.close()
 
     def http_test(self, args):
-        t = {}
-        for i in range(0, 10000):
-            t[i] = self._get_objs({"id": [500, 501]}, self.poll_manager)
-        return t
+        time.sleep(10)
+        return ""
 
     def http_user_vote_poll(self, args):
         user_id = args["user_id"] if "user_id" in args else None
@@ -87,7 +88,7 @@ class GingerAle(GingerAlePartial):
 if __name__ == "__main__":
 
     # parse parameters to dictionary, example argument: port=6176
-    cmd_line_args = {arg.split("=")[0]: arg.split("=")[1] for arg in argv[1:]}
+    cmd_line_args = {arg.split("=")[0]: arg.split("=")[1] for arg in sys.argv[1:]}
 
     GingerAle(
         port=cmd_line_args["port"] if "port" in cmd_line_args else 6176,
